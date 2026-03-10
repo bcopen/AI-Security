@@ -1,0 +1,6 @@
+{
+  "provider": "qwen",
+  "api_key": "a3209a70-7d2c-4711-ad48-8e9482d793c2",
+  "api_url": "http://qwen",
+  "enabled": true
+}

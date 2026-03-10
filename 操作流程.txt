@@ -1,0 +1,3 @@
+在目录下
+执行：
+python api_gui.py
